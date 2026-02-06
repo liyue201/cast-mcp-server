@@ -36,12 +36,9 @@ impl Server {
     }
     #[tool(description = "ping ")]
     async fn ping(&self) -> Result<CallToolResult, McpError> {
-        Ok(CallToolResult::success(vec![Content::text(
-           "pong",
-        )]))
+        Ok(CallToolResult::success(vec![Content::text("pong")]))
     }
 }
-
 
 #[tool_handler]
 impl ServerHandler for Server {
