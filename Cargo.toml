@@ -25,6 +25,7 @@ tokio = { version = "1", features = [
 cast = { git = "https://github.com/foundry-rs/foundry.git", rev = "1962f8bd5a06891d7817b16d8423f0a497e2d26d", subdir = "crates/cast" }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
+serde_default = "0.2.0"
 anyhow = "1.0"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3.22", features = [

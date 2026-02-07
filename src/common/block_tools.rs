@@ -20,33 +20,17 @@ use rmcp::{
 use serde_json::json;
 use tokio::sync::Mutex;
 use tracing::info;
+
 use cast::SimpleCast;
+use serde::{Deserialize, Serialize};
+use serde_default::DefaultFromSerde;
+use crate::common::server::Server;
 
-#[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
-pub struct Request {
-    pub r#type: String,
-}
-
-#[derive(Clone)]
-pub struct Server {
-   tool_router: ToolRouter<Self>,
-}
-
+#[tool_router(router = block_router, vis = "pub")]
 impl Server {
-    pub fn new() -> Self {
-        Self {
-            tool_router: Server::utility_router() + Server::block_router(),
-        }
+    #[tool(description = "a test tool for block")]
+    async fn block(&self) -> Result<CallToolResult, McpError> {
+        Ok(CallToolResult::success(vec![Content::text("block")]))
     }
-}
 
-#[tool_handler]
-impl ServerHandler for Server {
-    fn get_info(&self) -> ServerInfo {
-        ServerInfo {
-            instructions: Some("A simple calculator".into()),
-            capabilities: ServerCapabilities::builder().enable_tools().build(),
-            ..Default::default()
-        }
-    }
 }
