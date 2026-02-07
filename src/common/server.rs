@@ -8,7 +8,7 @@ pub struct Server {
 impl Server {
     pub fn new() -> Self {
         Self {
-            tool_router: Server::utility_router() + Server::block_router(),
+            tool_router: Server::utility_router() + Server::block_router() + Server::chain_router(),
         }
     }
 }

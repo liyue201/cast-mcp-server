@@ -6,7 +6,7 @@ use alloy_primitives::{Address, B256, eip191_hash_message, hex, keccak256};
 use cast::SimpleCast;
 use rand::random;
 use rmcp::{
-    ErrorData as McpError, RoleServer, ServerHandler,
+    ErrorData, RoleServer, ServerHandler,
     handler::server::{
         router::{prompt::PromptRouter, tool::ToolRouter},
         wrapper::Parameters,
@@ -51,7 +51,7 @@ pub struct MaxUIntArgs {
 #[tool_router(router = utility_router, vis = "pub")]
 impl Server {
     #[tool(description = "A test tool")]
-    async fn ping(&self) -> Result<CallToolResult, McpError> {
+    async fn ping(&self) -> Result<CallToolResult, ErrorData> {
         Ok(CallToolResult::success(vec![Content::text("pong")]))
     }
 
@@ -63,10 +63,10 @@ impl Server {
     async fn max_int(
         &self,
         Parameters(MaxIntArgs { r#type: t }): Parameters<MaxIntArgs>,
-    ) -> Result<CallToolResult, McpError> {
+    ) -> Result<CallToolResult, ErrorData> {
         let res = SimpleCast::max_int(&t).map_err(|e| {
             tracing::error!("Failed to get max int: {}", e);
-            McpError::new(ErrorCode::INVALID_REQUEST, "Failed to get max int", None)
+            ErrorData::invalid_params("Failed to get max int", None)
         })?;
         Ok(CallToolResult::success(vec![Content::text(res)]))
     }
@@ -79,10 +79,10 @@ impl Server {
     async fn min_int(
         &self,
         Parameters(MaxIntArgs { r#type: t }): Parameters<MaxIntArgs>,
-    ) -> Result<CallToolResult, McpError> {
+    ) -> Result<CallToolResult, ErrorData> {
         let res = SimpleCast::min_int(&t).map_err(|e| {
             tracing::error!("Failed to get min int: {}", e);
-            McpError::new(ErrorCode::INVALID_REQUEST, "Failed to get min int", None)
+            ErrorData::invalid_params("Failed to get min int", None)
         })?;
         Ok(CallToolResult::success(vec![Content::text(res)]))
     }
@@ -95,27 +95,23 @@ impl Server {
     async fn max_uint(
         &self,
         Parameters(MaxUIntArgs { r#type: t }): Parameters<MaxUIntArgs>,
-    ) -> Result<CallToolResult, McpError> {
+    ) -> Result<CallToolResult, ErrorData> {
         let res = SimpleCast::max_int(&t).map_err(|e| {
             tracing::error!("Failed to get max unsigned int: {}", e);
-            McpError::new(
-                ErrorCode::INVALID_REQUEST,
-                "Failed to get max unsigned int",
-                None,
-            )
+            ErrorData::invalid_params("Failed to get max unsigned int", None)
         })?;
         Ok(CallToolResult::success(vec![Content::text(res)]))
     }
 
     #[tool(description = "Get the zero address")]
-    async fn address_zero(&self) -> Result<CallToolResult, McpError> {
+    async fn address_zero(&self) -> Result<CallToolResult, ErrorData> {
         Ok(CallToolResult::success(vec![Content::text(
             Address::ZERO.to_string(),
         )]))
     }
 
     #[tool(description = "Get the zero hash")]
-    async fn hash_zero(&self) -> Result<CallToolResult, McpError> {
+    async fn hash_zero(&self) -> Result<CallToolResult, ErrorData> {
         Ok(CallToolResult::success(vec![Content::text(
             B256::ZERO.to_string(),
         )]))

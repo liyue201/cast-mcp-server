@@ -1846,6 +1846,8 @@ dependencies = [
  "axum",
  "cast",
  "chrono",
+ "foundry-cli",
+ "foundry-config",
  "futures",
  "hyper",
  "hyper-util",
