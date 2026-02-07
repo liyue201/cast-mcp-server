@@ -1,39 +1,13 @@
-#![allow(dead_code)]
-#![allow(unused)]
-use core::convert;
-use std::{any::Any, sync::Arc};
-
-use cast::{Cast, SimpleCast};
-use foundry_cli::{
-    opts::{EtherscanOpts, GlobalArgs, RpcOpts},
-    utils,
-    utils::LoadConfig,
-};
 use alloy_provider::Provider;
-use foundry_config::{Chain, Config, error, error::ExtractConfigError};
-use rand::random;
+use cast::Cast;
+use foundry_cli::{opts::RpcOpts, utils, utils::LoadConfig};
 use rmcp::{
-    ErrorData, RoleServer, ServerHandler,
-    handler::server::{
-        router::{prompt::PromptRouter, tool::ToolRouter},
-        wrapper::Parameters,
-    },
-    model::*,
-    prompt, prompt_handler, prompt_router, schemars,
-    service::RequestContext,
-    task_handler,
-    task_manager::{
-        OperationDescriptor, OperationMessage, OperationProcessor, OperationResultTransport,
-    },
-    tool, tool_handler, tool_router,
+    ErrorData, handler::server::wrapper::Parameters, model::*, schemars, tool, tool_router,
 };
-use serde::{Deserialize, Serialize};
 use serde_default::DefaultFromSerde;
-use serde_json::{Value, json};
-use tokio::sync::Mutex;
-use tracing::info;
+use serde_json::Value;
 
-use crate::common::{server::Server, utility_tools::MaxIntArgs};
+use crate::common::server::Server;
 
 fn default_rpc() -> String {
     "http://localhost:8545".to_string()
@@ -114,7 +88,9 @@ impl Server {
             ErrorData::internal_error("Failed to get chain", Some(Value::String(e.to_string())))
         })?;
 
-        Ok(CallToolResult::success(vec![Content::text(chain_id.to_string())]))
+        Ok(CallToolResult::success(vec![Content::text(
+            chain_id.to_string(),
+        )]))
     }
 
     #[tool(description = "
@@ -145,7 +121,10 @@ impl Server {
         })?;
 
         let version = provider.get_client_version().await.map_err(|e| {
-            ErrorData::internal_error("Failed to get client version", Some(Value::String(e.to_string())))
+            ErrorData::internal_error(
+                "Failed to get client version",
+                Some(Value::String(e.to_string())),
+            )
         })?;
 
         Ok(CallToolResult::success(vec![Content::text(version)]))
