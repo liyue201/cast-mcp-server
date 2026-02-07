@@ -1,6 +1,8 @@
 #![allow(dead_code)]
 #![allow(unused)]
 use std::{any::Any, sync::Arc};
+
+use cast::SimpleCast;
 use rand::random;
 use rmcp::{
     ErrorData as McpError, RoleServer, ServerHandler,
@@ -17,13 +19,12 @@ use rmcp::{
     },
     tool, tool_handler, tool_router,
 };
+use serde::{Deserialize, Serialize};
+use serde_default::DefaultFromSerde;
 use serde_json::json;
 use tokio::sync::Mutex;
 use tracing::info;
 
-use cast::SimpleCast;
-use serde::{Deserialize, Serialize};
-use serde_default::DefaultFromSerde;
 use crate::common::server::Server;
 
 fn default_int() -> String {
@@ -53,47 +54,54 @@ impl Server {
         Ok(CallToolResult::success(vec![Content::text("pong")]))
     }
 
-    #[tool(
-        description = r#"
+    #[tool(description = r#"
     Description: Get maximum value for integer type.
     Parameters:
         type: a string representing the integer type. Possible values are int8, int16, int32, int64, int256.
-    "#
-    )]
-    async fn max_int(&self, Parameters(MaxIntArgs{r#type: t}): Parameters<MaxIntArgs>) -> Result<CallToolResult, McpError> {
+    "#)]
+    async fn max_int(
+        &self,
+        Parameters(MaxIntArgs { r#type: t }): Parameters<MaxIntArgs>,
+    ) -> Result<CallToolResult, McpError> {
         let res = SimpleCast::max_int(&t).map_err(|e| {
             tracing::error!("Failed to get max int: {}", e);
-            McpError::new(ErrorCode::INVALID_REQUEST, "Failed to get max int",  None)
+            McpError::new(ErrorCode::INVALID_REQUEST, "Failed to get max int", None)
         })?;
         Ok(CallToolResult::success(vec![Content::text(res)]))
     }
 
-    #[tool(
-        description = r#"
+    #[tool(description = r#"
     Description: Get minimum value for integer type.
     Parameters:
         type: a string representing the integer type. Possible values are int8, int16, int32, int64, int256.
-    "#
-    )]
-    async fn min_int(&self, Parameters(MaxIntArgs{r#type: t}): Parameters<MaxIntArgs>) -> Result<CallToolResult, McpError> {
+    "#)]
+    async fn min_int(
+        &self,
+        Parameters(MaxIntArgs { r#type: t }): Parameters<MaxIntArgs>,
+    ) -> Result<CallToolResult, McpError> {
         let res = SimpleCast::min_int(&t).map_err(|e| {
             tracing::error!("Failed to get min int: {}", e);
-            McpError::new(ErrorCode::INVALID_REQUEST, "Failed to get min int",  None)
+            McpError::new(ErrorCode::INVALID_REQUEST, "Failed to get min int", None)
         })?;
         Ok(CallToolResult::success(vec![Content::text(res)]))
     }
 
-    #[tool(
-        description = r#"
+    #[tool(description = r#"
     Description: Get maximum value for unsigned integer type.
     Parameters:
         type: a string representing the unsigned integer type. Possible values are uint8, uint16, uint32, uint64, uint256.
-    "#
-    )]
-    async fn max_uint(&self, Parameters(MaxUIntArgs{r#type: t}): Parameters<MaxUIntArgs>) -> Result<CallToolResult, McpError> {
+    "#)]
+    async fn max_uint(
+        &self,
+        Parameters(MaxUIntArgs { r#type: t }): Parameters<MaxUIntArgs>,
+    ) -> Result<CallToolResult, McpError> {
         let res = SimpleCast::max_int(&t).map_err(|e| {
             tracing::error!("Failed to get max unsigned int: {}", e);
-            McpError::new(ErrorCode::INVALID_REQUEST, "Failed to get max unsigned int",  None)
+            McpError::new(
+                ErrorCode::INVALID_REQUEST,
+                "Failed to get max unsigned int",
+                None,
+            )
         })?;
         Ok(CallToolResult::success(vec![Content::text(res)]))
     }

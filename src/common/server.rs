@@ -1,35 +1,8 @@
-#![allow(dead_code)]
-#![allow(unused)]
-use std::{any::Any, sync::Arc};
-use rand::random;
-use rmcp::{
-    ErrorData as McpError, RoleServer, ServerHandler,
-    handler::server::{
-        router::{prompt::PromptRouter, tool::ToolRouter},
-        wrapper::Parameters,
-    },
-    model::*,
-    prompt, prompt_handler, prompt_router, schemars,
-    service::RequestContext,
-    task_handler,
-    task_manager::{
-        OperationDescriptor, OperationMessage, OperationProcessor, OperationResultTransport,
-    },
-    tool, tool_handler, tool_router,
-};
-use serde_json::json;
-use tokio::sync::Mutex;
-use tracing::info;
-use cast::SimpleCast;
-
-#[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
-pub struct Request {
-    pub r#type: String,
-}
+use rmcp::{ServerHandler, handler::server::router::tool::ToolRouter, model::*, tool_handler};
 
 #[derive(Clone)]
 pub struct Server {
-   tool_router: ToolRouter<Self>,
+    tool_router: ToolRouter<Self>,
 }
 
 impl Server {
@@ -44,7 +17,7 @@ impl Server {
 impl ServerHandler for Server {
     fn get_info(&self) -> ServerInfo {
         ServerInfo {
-            instructions: Some("A simple calculator".into()),
+            instructions: Some("A MCP server for cast".into()),
             capabilities: ServerCapabilities::builder().enable_tools().build(),
             ..Default::default()
         }
