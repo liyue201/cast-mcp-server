@@ -2,6 +2,7 @@
 #![allow(unused)]
 use std::{any::Any, sync::Arc};
 
+use alloy_primitives::{Address, B256, eip191_hash_message, hex, keccak256};
 use cast::SimpleCast;
 use rand::random;
 use rmcp::{
@@ -49,13 +50,13 @@ pub struct MaxUIntArgs {
 
 #[tool_router(router = utility_router, vis = "pub")]
 impl Server {
-    #[tool(description = "a test tool")]
+    #[tool(description = "A test tool")]
     async fn ping(&self) -> Result<CallToolResult, McpError> {
         Ok(CallToolResult::success(vec![Content::text("pong")]))
     }
 
     #[tool(description = r#"
-    Description: Get maximum value for integer type.
+    Get maximum value for integer type.
     Parameters:
         type: a string representing the integer type. Possible values are int8, int16, int32, int64, int256.
     "#)]
@@ -71,7 +72,7 @@ impl Server {
     }
 
     #[tool(description = r#"
-    Description: Get minimum value for integer type.
+    Get minimum value for integer type.
     Parameters:
         type: a string representing the integer type. Possible values are int8, int16, int32, int64, int256.
     "#)]
@@ -87,7 +88,7 @@ impl Server {
     }
 
     #[tool(description = r#"
-    Description: Get maximum value for unsigned integer type.
+    Get maximum value for unsigned integer type.
     Parameters:
         type: a string representing the unsigned integer type. Possible values are uint8, uint16, uint32, uint64, uint256.
     "#)]
@@ -104,5 +105,19 @@ impl Server {
             )
         })?;
         Ok(CallToolResult::success(vec![Content::text(res)]))
+    }
+
+    #[tool(description = "Get the zero address")]
+    async fn address_zero(&self) -> Result<CallToolResult, McpError> {
+        Ok(CallToolResult::success(vec![Content::text(
+            Address::ZERO.to_string(),
+        )]))
+    }
+
+    #[tool(description = "Get the zero hash")]
+    async fn hash_zero(&self) -> Result<CallToolResult, McpError> {
+        Ok(CallToolResult::success(vec![Content::text(
+            B256::ZERO.to_string(),
+        )]))
     }
 }

@@ -1840,6 +1840,7 @@ dependencies = [
 name = "cast-mcp-server"
 version = "0.1.0"
 dependencies = [
+ "alloy-primitives",
  "anyhow",
  "askama",
  "axum",
