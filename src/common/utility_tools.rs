@@ -109,3 +109,21 @@ impl Server {
         )]))
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use rmcp::handler::server::wrapper::Parameters;
+
+    use super::*;
+    #[test]
+    fn test_max_int_args_default() {
+        let args = MaxIntArgs::default();
+        assert_eq!(args.r#type, "int256");
+    }
+
+    #[test]
+    fn test_max_uint_args_default() {
+        let args = MaxUIntArgs::default();
+        assert_eq!(args.r#type, "uint256");
+    }
+}

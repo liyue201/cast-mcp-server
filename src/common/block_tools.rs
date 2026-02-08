@@ -8,7 +8,7 @@ use serde_json::Value;
 
 use crate::common::{common::*, server::Server};
 
-#[derive(Debug, serde::Deserialize, DefaultFromSerde, schemars::JsonSchema)]
+#[derive(Debug, Clone, serde::Deserialize, DefaultFromSerde, schemars::JsonSchema)]
 pub struct AgeArgs {
     #[serde(default = "default_rpc")]
     pub rpc: String,
@@ -56,5 +56,28 @@ impl Server {
             })?;
 
         Ok(CallToolResult::success(vec![Content::text(age)]))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_age_args_default() {
+        let args = AgeArgs::default();
+        assert_eq!(args.rpc, "http://localhost:8545");
+        assert_eq!(args.block, None);
+    }
+
+    #[test]
+    fn test_age_args_clone() {
+        let original = AgeArgs {
+            rpc: "https://test.com".to_string(),
+            block: Some("latest".to_string()),
+        };
+        let cloned = original.clone();
+        assert_eq!(original.rpc, cloned.rpc);
+        assert_eq!(original.block, cloned.block);
     }
 }

@@ -9,7 +9,7 @@ use serde_json::Value;
 
 use crate::common::{common::*, server::Server};
 
-#[derive(Debug, serde::Deserialize, DefaultFromSerde, schemars::JsonSchema)]
+#[derive(Debug, Clone, serde::Deserialize, DefaultFromSerde, schemars::JsonSchema)]
 pub struct ChainArgs {
     #[serde(default = "default_rpc")]
     pub rpc: String,
@@ -124,5 +124,25 @@ impl Server {
         })?;
 
         Ok(CallToolResult::success(vec![Content::text(version)]))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_chain_args_default() {
+        let args = ChainArgs::default();
+        assert_eq!(args.rpc, "http://localhost:8545");
+    }
+
+    #[test]
+    fn test_chain_args_clone() {
+        let original = ChainArgs {
+            rpc: "https://test.com".to_string(),
+        };
+        let cloned = original.clone();
+        assert_eq!(original.rpc, cloned.rpc);
     }
 }
