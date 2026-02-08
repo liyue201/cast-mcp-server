@@ -129,9 +129,11 @@ impl Server {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use rmcp::handler::server::wrapper::Parameters;
     use std::sync::Arc;
+
+    use rmcp::handler::server::wrapper::Parameters;
+
+    use super::*;
 
     #[test]
     fn test_chain_args_default() {
@@ -147,61 +149,105 @@ mod tests {
         let cloned = original.clone();
         assert_eq!(original.rpc, cloned.rpc);
     }
-    
+
     #[tokio::test]
     async fn test_chain_tools_response_structure() {
         let server = Server::new();
-        
+
         // Test with localhost (may succeed or fail, but we check structure)
         let args = ChainArgs {
-            rpc: "https://1rpc.io/eth".to_string(),
+            rpc: "https://mainnet.infura.io".to_string(),
         };
         let params = Parameters(args);
-        
+
         // Test chain tool response structure (even if it fails)
         let chain_result = server.chain(params.clone()).await;
         match chain_result {
             Ok(result) => {
-                assert!(!result.content.is_empty(), "Chain tool should return content when successful");
-                let response_text = result.content.first().unwrap().raw.as_text().expect("Response should be text");
-                assert!(!response_text.text.is_empty(), "Chain response should not be empty");
+                assert!(
+                    !result.content.is_empty(),
+                    "Chain tool should return content when successful"
+                );
+                let response_text = result
+                    .content
+                    .first()
+                    .unwrap()
+                    .raw
+                    .as_text()
+                    .expect("Response should be text");
+                assert!(
+                    !response_text.text.is_empty(),
+                    "Chain response should not be empty"
+                );
                 println!("Chain response: {}", response_text.text);
             }
             Err(error) => {
                 // Even in error case, verify it's a proper ErrorData
-                assert!(!error.message.is_empty(), "Error message should not be empty");
+                assert!(
+                    !error.message.is_empty(),
+                    "Error message should not be empty"
+                );
                 println!("Chain error (expected): {}", error.message);
             }
         }
-        
+
         // Test chain_id tool response structure
         let chain_id_result = server.chain_id(params.clone()).await;
         match chain_id_result {
             Ok(result) => {
-                assert!(!result.content.is_empty(), "Chain ID tool should return content when successful");
-                let response_text = result.content.first().unwrap().raw.as_text().expect("Response should be text");
+                assert!(
+                    !result.content.is_empty(),
+                    "Chain ID tool should return content when successful"
+                );
+                let response_text = result
+                    .content
+                    .first()
+                    .unwrap()
+                    .raw
+                    .as_text()
+                    .expect("Response should be text");
                 // Chain ID should be numeric
-                assert!(response_text.text.parse::<u64>().is_ok() || !response_text.text.is_empty(), 
-                       "Chain ID should be numeric or non-empty");
+                assert!(
+                    response_text.text.parse::<u64>().is_ok() || !response_text.text.is_empty(),
+                    "Chain ID should be numeric or non-empty"
+                );
                 println!("Chain ID response: {}", response_text.text);
             }
             Err(error) => {
-                assert!(!error.message.is_empty(), "Error message should not be empty");
+                assert!(
+                    !error.message.is_empty(),
+                    "Error message should not be empty"
+                );
                 println!("Chain ID error (expected): {}", error.message);
             }
         }
-        
+
         // Test client tool response structure
         let client_result = server.client(params).await;
         match client_result {
             Ok(result) => {
-                assert!(!result.content.is_empty(), "Client tool should return content when successful");
-                let response_text = result.content.first().unwrap().raw.as_text().expect("Response should be text");
-                assert!(!response_text.text.is_empty(), "Client version should not be empty");
+                assert!(
+                    !result.content.is_empty(),
+                    "Client tool should return content when successful"
+                );
+                let response_text = result
+                    .content
+                    .first()
+                    .unwrap()
+                    .raw
+                    .as_text()
+                    .expect("Response should be text");
+                assert!(
+                    !response_text.text.is_empty(),
+                    "Client version should not be empty"
+                );
                 println!("Client response: {}", response_text.text);
             }
             Err(error) => {
-                assert!(!error.message.is_empty(), "Error message should not be empty");
+                assert!(
+                    !error.message.is_empty(),
+                    "Error message should not be empty"
+                );
                 println!("Client error (expected): {}", error.message);
             }
         }
@@ -210,17 +256,17 @@ mod tests {
     #[tokio::test]
     async fn test_concurrent_chain_tool_calls() {
         let server = Arc::new(Server::new());
-        
+
         // Test concurrent execution of chain tools
         let handles: Vec<_> = (0..6)
             .map(|i| {
                 let server_clone = Arc::clone(&server);
                 tokio::spawn(async move {
                     let args = ChainArgs {
-                        rpc: "https://1rpc.io/eth".to_string(),
+                        rpc: "https://mainnet.infura.io".to_string(),
                     };
                     let params = Parameters(args);
-                    
+
                     match i % 3 {
                         0 => server_clone.chain(params.clone()).await,
                         1 => server_clone.chain_id(params.clone()).await,
@@ -230,17 +276,20 @@ mod tests {
                 })
             })
             .collect();
-        
+
         // Wait for all concurrent calls to complete
         let results: Vec<_> = futures::future::join_all(handles).await;
-        
+
         // Verify all concurrent calls completed (they may succeed or fail, but shouldn't panic)
         for (i, result) in results.into_iter().enumerate() {
             let call_result = result.expect(&format!("Concurrent chain task {} join failed", i));
             // Each call should either succeed or return a proper error
             match call_result {
                 Ok(_) => println!("Concurrent chain call {} succeeded", i),
-                Err(e) => println!("Concurrent chain call {} failed as expected: {}", i, e.message),
+                Err(e) => println!(
+                    "Concurrent chain call {} failed as expected: {}",
+                    i, e.message
+                ),
             }
         }
     }
@@ -250,7 +299,7 @@ mod tests {
         let args = ChainArgs {
             rpc: "https://mainnet.infura.io".to_string(),
         };
-        
+
         // Test that args implements the required traits
         let _clone = args.clone();
         let debug_output = format!("{:?}", args);
