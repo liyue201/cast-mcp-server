@@ -8,3 +8,6 @@ fmt:
 
 clean:
 	cargo clean
+
+test:
+	cargo test

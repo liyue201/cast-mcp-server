@@ -79,7 +79,7 @@ mod tests {
 
     #[test]
     fn test_server_debug_format() {
-        let server = Server::new();
+        let _ = Server::new();
         // Debug formatting test skipped due to missing Debug impl
 
         // Server creation should succeed
