@@ -26,15 +26,7 @@ use serde_json::json;
 use tokio::sync::Mutex;
 use tracing::info;
 
-use crate::common::server::Server;
-
-fn default_int() -> String {
-    "int256".to_string()
-}
-
-fn default_uint() -> String {
-    "uint256".to_string()
-}
+use crate::common::{common::*, server::Server};
 
 #[derive(Debug, serde::Deserialize, DefaultFromSerde, schemars::JsonSchema)]
 pub struct MaxIntArgs {

@@ -7,11 +7,7 @@ use rmcp::{
 use serde_default::DefaultFromSerde;
 use serde_json::Value;
 
-use crate::common::server::Server;
-
-fn default_rpc() -> String {
-    "http://localhost:8545".to_string()
-}
+use crate::common::{common::*, server::Server};
 
 #[derive(Debug, serde::Deserialize, DefaultFromSerde, schemars::JsonSchema)]
 pub struct ChainArgs {

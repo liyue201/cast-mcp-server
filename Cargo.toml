@@ -59,6 +59,7 @@ url = "2.5"
 # solar
 solar = { package = "solar-compiler", version = "=0.1.8", default-features = false }
 alloy-provider = { version = "1.4", default-features = false }
+alloy-rpc-types = "1.4"
 
 [dev-dependencies]
 tokio-stream = { version = "0.1" }

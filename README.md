@@ -1,8 +1,8 @@
 # Cast MCP Server
 
-A Model Context Protocol (MCP) server that provides AI assistants with access to [cast](https://book.getfoundry.sh/cast/) tools.
+A Model Context Protocol (MCP) server that provides AI assistants with access to [cast](https://book.getfoundry.sh/reference/cast/) tools from the Foundry toolkit.
 
-cast is a command-line tool from the Foundry toolkit for interacting with Ethereum blockchain. This MCP server encapsulates cast's functionality as tools that can be called by AI models.
+Cast is a powerful command-line tool for interacting with Ethereum blockchain networks. This MCP server exposes cast's functionality as callable tools that can be used by AI models through the MCP protocol.
 
 ## Features
 
@@ -10,22 +10,23 @@ cast is a command-line tool from the Foundry toolkit for interacting with Ethere
 - `chain`: Get the symbolic name of the current chain
 - `chain_id`: Get the chain ID of the current chain
 - `client`: Get the current client version
-- `block`: Block-related test tool
+- `age`: Get the timestamp of a block
 
 ### Utility Tools
-- `ping`: Simple connectivity test
-- `max_int`: Get maximum value for integer types
-- `min_int`: Get minimum value for integer types
-- `max_uint`: Get maximum value for unsigned integer types
-- `address_zero`: Get the zero address
-- `hash_zero`: Get the zero hash
+- `ping`: Test tool that returns "pong"
+- `max_int`: Get maximum value for signed integer types (int8, int16, int32, int64, int256)
+- `min_int`: Get minimum value for signed integer types (int8, int16, int32, int64, int256)
+- `max_uint`: Get maximum value for unsigned integer types (uint8, uint16, uint32, uint64, uint256)
+- `address_zero`: Get the zero Ethereum address (0x0000000000000000000000000000000000000000)
+- `hash_zero`: Get the zero hash (0x0000000000000000000000000000000000000000000000000000000000000000)
 
 ## Quick Start
 
 ### Prerequisites
 
-- Rust 1.91.0 or higher
-- AI client that supports MCP protocol (such as Claude Desktop)
+- Rust 1.91.0 (managed automatically via rust-toolchain.toml)
+- AI client that supports MCP protocol (such as Claude Desktop, Cursor, or other MCP-compatible clients)
+- Access to an Ethereum RPC endpoint (default: http://localhost:8545)
 
 ### Installation
 
@@ -38,6 +39,9 @@ cd cast-mcp-server
 make build
 # Or use cargo directly
 cargo build --release
+
+# The executable will be located at:
+# ./target/release/cast-mcp-server
 ```
 
 ### Running
@@ -57,16 +61,21 @@ cargo run
 The server supports the following environment variable configurations:
 
 ```bash
-# Set log level (default: DEBUG)
+# Set log level (options: trace, debug, info, warn, error)
+# Default: debug
 RUST_LOG=info
 
-# RPC endpoint configuration (default: http://localhost:8545)
-RPC_URL=https://mainnet.infura.io/v3/YOUR_PROJECT_ID
+# Note: RPC endpoints are configured per-tool via parameters
+# Default RPC endpoint: http://localhost:8545
 ```
 
 ### Usage Example
 
 Configure this server in an MCP-enabled AI client:
+
+#### Claude Desktop Configuration
+
+Add to your Claude desktop configuration file:
 
 ```json
 {
@@ -79,15 +88,32 @@ Configure this server in an MCP-enabled AI client:
 }
 ```
 
+#### General MCP Client Configuration
+
+For other MCP-compatible clients, configure the server with:
+- **Command**: Path to the compiled binary
+- **Arguments**: None required (empty array)
+- **Working Directory**: Project root directory
+
 ## Development
 
 ### Code Formatting
 
 ```bash
-# Format code (requires nightly version)
+# Format code (requires nightly toolchain)
 make fmt
 # Or
 cargo +nightly fmt
+```
+
+### Linting
+
+```bash
+# Run clippy linter
+cargo clippy
+
+# Run clippy with all features and stricter warnings
+cargo clippy --all-targets --all-features -- -D warnings
 ```
 
 ### Clean Build
@@ -98,98 +124,56 @@ make clean
 cargo clean
 ```
 
-## Project Structure
+### Testing
 
+```bash
+# Run tests (if available)
+cargo test
+
+# Run tests with verbose output
+cargo test -- --nocapture
 ```
-cast-mcp-server/
-├── src/
-│   ├── common/
-│   │   ├── block_tools.rs    # Block-related tools
-│   │   ├── chain_tools.rs    # Chain-related tools
-│   │   ├── mod.rs           # Module declarations
-│   │   ├── server.rs        # Main server logic
-│   │   └── utility_tools.rs # Utility tools
-│   └── main.rs              # Program entry point
-├── Cargo.toml               # Project dependencies
-├── Makefile                 # Build scripts
-├── README.md                # This document
-├── rust-toolchain.toml      # Rust toolchain configuration
-└── rustfmt.toml             # Code formatting configuration
-```
-
-## API Documentation
-
-### Chain Tools
-
-#### `chain`
-Gets the symbolic name of the currently connected blockchain network.
-
-**Parameters:**
-- `rpc` (optional): RPC endpoint URL, defaults to `http://localhost:8545`
-
-**Returns:**
-Blockchain network name (e.g., "ethereum", "polygon", etc.)
-
-#### `chain_id`
-Gets the chain ID of the current chain.
-
-**Parameters:**
-- `rpc` (optional): RPC endpoint URL, defaults to `http://localhost:8545`
-
-**Returns:**
-Chain ID number
-
-#### `client`
-Gets RPC client version information.
-
-**Parameters:**
-- `rpc` (optional): RPC endpoint URL, defaults to `http://localhost:8545`
-
-**Returns:**
-Client version string
-
-### Utility Tools
-
-#### `max_int`
-Gets the maximum value for a specified integer type.
-
-**Parameters:**
-- `type`: Integer type, possible values: `int8`, `int16`, `int32`, `int64`, `int256`
-
-**Returns:**
-Maximum value for the corresponding type
-
-#### `min_int`
-Gets the minimum value for a specified integer type.
-
-**Parameters:**
-- `type`: Integer type, possible values: `int8`, `int16`, `int32`, `int64`, `int256`
-
-**Returns:**
-Minimum value for the corresponding type
-
-#### `max_uint`
-Gets the maximum value for a specified unsigned integer type.
-
-**Parameters:**
-- `type`: Unsigned integer type, possible values: `uint8`, `uint16`, `uint32`, `uint64`, `uint256`
-
-**Returns:**
-Maximum value for the corresponding type
 
 ## Contributing
 
-Issues and Pull Requests are welcome!
+Contributions are welcome! Here's how you can help:
+
+### Development Setup
 
 1. Fork this repository
-2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push to the branch (`git push origin feature/AmazingFeature`)
-5. Open a Pull Request
+2. Clone your fork: `git clone https://github.com/your-username/cast-mcp-server.git`
+3. Create a feature branch: `git checkout -b feature/amazing-feature`
+4. Make your changes
+5. Format your code: `make fmt`
+6. Test your changes: `cargo test`
+7. Commit your changes: `git commit -am 'Add amazing feature'`
+8. Push to the branch: `git push origin feature/amazing-feature`
+9. Open a Pull Request
+
+### Code Standards
+
+- Follow the existing code style (enforced by rustfmt)
+- Add tests for new functionality
+- Update documentation as needed
+- Ensure all tests pass before submitting PR
+
+### Reporting Issues
+
+Please include:
+- Clear description of the issue
+- Steps to reproduce
+- Expected vs actual behavior
+- Environment information (OS, Rust version, etc.)
 
 ## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## Acknowledgments
+
+- [Foundry](https://github.com/foundry-rs/foundry) - Ethereum development toolkit
+- [MCP Specification](https://modelcontextprotocol.io/) - Model Context Protocol
+- [Rust](https://www.rust-lang.org/) - Systems programming language
 
 ## Related Links
 
