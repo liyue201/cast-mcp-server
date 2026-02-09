@@ -14,6 +14,8 @@ Cast is a powerful command-line tool for interacting with Ethereum blockchain ne
 
 ### Block Tools
 - `block`: Get detailed information about a block
+- `block_number`: Get the block number of a specific block or the latest block
+- `age`: Get the timestamp of a block
 
 ### Account Tools
 - `balance`: Get the balance of an account in wei or ether
@@ -103,6 +105,72 @@ For other MCP-compatible clients, configure the server with:
 - **Command**: Path to the compiled binary
 - **Arguments**: None required (empty array)
 - **Working Directory**: Project root directory
+
+### Tool Usage Examples
+
+Here are examples of how to use the available tools:
+
+#### Block Tools
+
+```json
+{
+  "name": "block",
+  "arguments": {
+    "rpc": "https://mainnet.infura.io/v3/YOUR_PROJECT_ID",
+    "block": "latest",
+    "full": true,
+    "fields": ["number", "timestamp", "gasUsed"]
+  }
+}
+```
+
+```json
+{
+  "name": "block_number",
+  "arguments": {
+    "rpc": "https://mainnet.infura.io/v3/YOUR_PROJECT_ID",
+    "block": "latest"
+  }
+}
+```
+
+```json
+{
+  "name": "age",
+  "arguments": {
+    "rpc": "https://mainnet.infura.io/v3/YOUR_PROJECT_ID",
+    "block": "1000000"
+  }
+}
+```
+
+#### Account Tools
+
+```json
+{
+  "name": "balance",
+  "arguments": {
+    "rpc": "https://mainnet.infura.io/v3/YOUR_PROJECT_ID",
+    "who": "0x742d35Cc6634C0532925a3b844Bc454e4438f44e",
+    "ether": true
+  }
+}
+```
+
+```json
+{
+  "name": "nonce",
+  "arguments": {
+    "rpc": "https://mainnet.infura.io/v3/YOUR_PROJECT_ID",
+    "who": "0x742d35Cc6634C0532925a3b844Bc454e4438f44e",
+    "block": "latest"
+  }
+}
+```
+
+All tools support the following common parameters:
+- **rpc**: Ethereum RPC endpoint URL (default: http://localhost:8545)
+- **block**: Block identifier (number, hash, or tags like "latest", "finalized", "safe", "earliest", "pending")
 
 ## Development
 

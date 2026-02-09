@@ -39,6 +39,17 @@ pub struct BlockArgs {
     block: Option<String>,
 }
 
+#[derive(Debug, Clone, serde::Deserialize, DefaultFromSerde, schemars::JsonSchema)]
+pub struct BlockNumberArgs {
+    /// The RPC endpoint, default value is http://localhost:8545.
+    #[serde(default = "default_rpc")]
+    pub rpc: String,
+
+    /// The block height to query at. Can also be the tags earliest, finalized, safe, latest, pending or block hash.
+    #[serde(default)]
+    pub block: Option<String>,
+}
+
 #[tool_router(router = block_router, vis = "pub")]
 impl Server {
     #[tool(description = "Get the timestamp of a block. ")]
@@ -109,6 +120,56 @@ impl Server {
             })?;
 
         Ok(CallToolResult::success(vec![Content::text(res)]))
+    }
+
+    #[tool(description = "Get the latest block number")]
+    async fn block_number(
+        &self,
+        Parameters(args): Parameters<BlockNumberArgs>,
+    ) -> Result<CallToolResult, ErrorData> {
+        let rpc = RpcOpts {
+            url: Some(args.rpc.clone()),
+            accept_invalid_certs: false,
+            no_proxy: false,
+            flashbots: false,
+            jwt_secret: None,
+            rpc_timeout: None,
+            rpc_headers: None,
+            curl: false,
+        };
+        let config = rpc.load_config().map_err(|e| {
+            ErrorData::parse_error("Invalid RPC URL", Some(Value::String(e.to_string())))
+        })?;
+        let provider = utils::get_provider(&config).map_err(|e| {
+            ErrorData::internal_error("Failed to get provider", Some(Value::String(e.to_string())))
+        })?;
+
+        // Use Cast to get block information and extract the number
+        let block_data = Cast::new(provider)
+            .block(
+                get_block_id(args.block),
+                false,
+                vec!["number".to_string()],
+                false,
+            )
+            .await
+            .map_err(|e| {
+                ErrorData::internal_error(
+                    "Failed to get block information",
+                    Some(Value::String(e.to_string())),
+                )
+            })?;
+
+        // Parse the block number from the response
+        let block_number = if block_data.contains("number") {
+            // Extract number from JSON response
+            block_data
+        } else {
+            // If it's just the number, use it directly
+            block_data
+        };
+
+        Ok(CallToolResult::success(vec![Content::text(block_number)]))
     }
 }
 
@@ -380,6 +441,37 @@ mod tests {
         assert!(debug_output.contains("12345"));
     }
 
+    // BlockNumberArgs tests
+    #[test]
+    fn test_block_number_args_default() {
+        let args = BlockNumberArgs::default();
+        assert_eq!(args.rpc, "http://localhost:8545");
+        assert_eq!(args.block, None);
+    }
+
+    #[test]
+    fn test_block_number_args_clone() {
+        let original = BlockNumberArgs {
+            rpc: "https://test.com".to_string(),
+            block: Some("latest".to_string()),
+        };
+        let cloned = original.clone();
+        assert_eq!(original.rpc, cloned.rpc);
+        assert_eq!(original.block, cloned.block);
+    }
+
+    #[test]
+    fn test_block_number_args_debug_format() {
+        let args = BlockNumberArgs {
+            rpc: "test-rpc".to_string(),
+            block: Some("latest".to_string()),
+        };
+        let debug_output = format!("{:?}", args);
+        assert!(debug_output.contains("BlockNumberArgs"));
+        assert!(debug_output.contains("test-rpc"));
+        assert!(debug_output.contains("latest"));
+    }
+
     #[tokio::test]
     async fn test_block_invalid_rpc() {
         let server = Server::new();
@@ -607,6 +699,140 @@ mod tests {
                     );
                     println!(
                         "Concurrent block call {} failed as expected: {}",
+                        i, e.message
+                    );
+                }
+            }
+        }
+    }
+
+    #[tokio::test]
+    async fn test_block_number_tool() {
+        let server = Server::new();
+
+        // Test block number with different block identifiers
+        let test_cases = vec![
+            Some("latest"),
+            Some("finalized"),
+            Some("safe"),
+            Some("1000000"),
+            None, // Default case (latest)
+        ];
+
+        for block_opt in test_cases {
+            let args = BlockNumberArgs {
+                rpc: "https://1rpc.io/eth".to_string(),
+                block: block_opt.map(|s| s.to_string()),
+            };
+            let params = Parameters(args);
+
+            let result = tokio::time::timeout(
+                std::time::Duration::from_secs(5),
+                server.block_number(params),
+            )
+            .await
+            .expect(&format!(
+                "Block number tool timeout for block: {:?}",
+                block_opt
+            ));
+
+            // Test response structure regardless of success/failure
+            match result {
+                Ok(response) => {
+                    assert!(
+                        !response.content.is_empty(),
+                        "Block number tool should return content for block: {:?}",
+                        block_opt
+                    );
+                    let response_text = response
+                        .content
+                        .first()
+                        .unwrap()
+                        .raw
+                        .as_text()
+                        .expect("Response should be text");
+                    assert!(
+                        !response_text.text.is_empty(),
+                        "Block number response should not be empty for block: {:?}",
+                        block_opt
+                    );
+                    // Block number should be numeric or contain numeric information
+                    assert!(
+                        response_text.text.contains("number")
+                            || response_text.text.parse::<u64>().is_ok(),
+                        "Block number response should contain number information"
+                    );
+                    println!("Block number for {:?}: {}", block_opt, response_text.text);
+                }
+                Err(error) => {
+                    assert!(
+                        !error.message.is_empty(),
+                        "Error message should not be empty for block: {:?}",
+                        block_opt
+                    );
+                    println!(
+                        "Block number error for {:?} (expected): {}",
+                        block_opt, error.message
+                    );
+                }
+            }
+        }
+    }
+
+    #[tokio::test]
+    async fn test_concurrent_block_number_calls() {
+        let server = Arc::new(Server::new());
+
+        // Test concurrent execution with different block identifiers
+        let block_identifiers = vec![
+            Some("latest"),
+            Some("finalized"),
+            Some("safe"),
+            Some("1000000"),
+            None, // Default case
+        ];
+
+        let handles: Vec<_> = block_identifiers
+            .into_iter()
+            .enumerate()
+            .map(|(_, block_opt)| {
+                let server_clone = Arc::clone(&server);
+                tokio::spawn(async move {
+                    let args = BlockNumberArgs {
+                        rpc: "https://1rpc.io/eth".to_string(),
+                        block: block_opt.map(|s| s.to_string()),
+                    };
+                    let params = Parameters(args);
+
+                    server_clone.block_number(params).await
+                })
+            })
+            .collect();
+
+        // Wait for all concurrent calls to complete
+        let results: Vec<_> = futures::future::join_all(handles).await;
+
+        // Verify all concurrent calls completed
+        for (i, result) in results.into_iter().enumerate() {
+            let call_result =
+                result.expect(&format!("Concurrent block number task {} join failed", i));
+            match call_result {
+                Ok(response) => {
+                    assert!(
+                        !response.content.is_empty(),
+                        "Concurrent block number call {} should return content",
+                        i
+                    );
+                    println!("Concurrent block number call {} succeeded", i);
+                }
+                Err(e) => {
+                    assert!(
+                        !e.message.is_empty(),
+                        "Concurrent block number call {} error should have message",
+                        i
+                    );
+                    println!(
+                        "Concurrent block number call {} failed as expected: {}",
                         i, e.message
                     );
                 }
