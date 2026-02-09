@@ -11,17 +11,14 @@ use crate::common::{common::*, server::Server};
 
 #[derive(Debug, Clone, serde::Deserialize, DefaultFromSerde, schemars::JsonSchema)]
 pub struct ChainArgs {
+    /// The RPC endpoint, default value is http://localhost:8545.
     #[serde(default = "default_rpc")]
     pub rpc: String,
 }
 
 #[tool_router(router = chain_router, vis = "pub")]
 impl Server {
-    #[tool(description = "
-      Get the symbolic name of the current chain
-      Parameters:
-        rpc: The RPC endpoint, default value is http://localhost:8545.
-    ")]
+    #[tool(description = "Get the symbolic name of the current chain ")]
     async fn chain(
         &self,
         Parameters(ChainArgs { rpc: rpc_url }): Parameters<ChainArgs>,
@@ -52,11 +49,7 @@ impl Server {
         Ok(CallToolResult::success(vec![Content::text(chain)]))
     }
 
-    #[tool(description = "
-      Get the chain ID of the current chain
-      Parameters:
-        rpc: The RPC endpoint, default value is http://localhost:8545.
-    ")]
+    #[tool(description = "Get the chain ID of the current chain")]
     async fn chain_id(
         &self,
         Parameters(ChainArgs { rpc: rpc_url }): Parameters<ChainArgs>,
@@ -89,11 +82,7 @@ impl Server {
         )]))
     }
 
-    #[tool(description = "
-      Get the current client version.
-      Parameters:
-        rpc: The RPC endpoint, default value is http://localhost:8545.
-    ")]
+    #[tool(description = "Get the current client version. ")]
     async fn client(
         &self,
         Parameters(ChainArgs { rpc: rpc_url }): Parameters<ChainArgs>,

@@ -30,12 +30,14 @@ use crate::common::{common::*, server::Server};
 
 #[derive(Debug, serde::Deserialize, DefaultFromSerde, schemars::JsonSchema)]
 pub struct MaxIntArgs {
+    /// A string representing the integer type. Possible values are int8, int16, int32, int64, int256.
     #[serde(default = "default_int")]
     pub r#type: String,
 }
 
 #[derive(Debug, serde::Deserialize, DefaultFromSerde, schemars::JsonSchema)]
 pub struct MaxUIntArgs {
+    /// A string representing the unsigned integer type. Possible values are uint8, uint16, uint32, uint64, uint256.
     #[serde(default = "default_uint")]
     pub r#type: String,
 }
@@ -47,11 +49,7 @@ impl Server {
         Ok(CallToolResult::success(vec![Content::text("pong")]))
     }
 
-    #[tool(description = r#"
-    Get maximum value for integer type.
-    Parameters:
-        type: a string representing the integer type. Possible values are int8, int16, int32, int64, int256.
-    "#)]
+    #[tool(description = "Get maximum value for integer type.")]
     async fn max_int(
         &self,
         Parameters(MaxIntArgs { r#type: t }): Parameters<MaxIntArgs>,
@@ -63,11 +61,7 @@ impl Server {
         Ok(CallToolResult::success(vec![Content::text(res)]))
     }
 
-    #[tool(description = r#"
-    Get minimum value for integer type.
-    Parameters:
-        type: a string representing the integer type. Possible values are int8, int16, int32, int64, int256.
-    "#)]
+    #[tool(description = "Get minimum value for integer type")]
     async fn min_int(
         &self,
         Parameters(MaxIntArgs { r#type: t }): Parameters<MaxIntArgs>,
@@ -79,11 +73,7 @@ impl Server {
         Ok(CallToolResult::success(vec![Content::text(res)]))
     }
 
-    #[tool(description = r#"
-    Get maximum value for unsigned integer type.
-    Parameters:
-        type: a string representing the unsigned integer type. Possible values are uint8, uint16, uint32, uint64, uint256.
-    "#)]
+    #[tool(description = "Get maximum value for unsigned integer type.")]
     async fn max_uint(
         &self,
         Parameters(MaxUIntArgs { r#type: t }): Parameters<MaxUIntArgs>,

@@ -10,14 +10,18 @@ use crate::common::{common::*, server::Server};
 
 #[derive(Debug, Clone, serde::Deserialize, DefaultFromSerde, schemars::JsonSchema)]
 pub struct AgeArgs {
+    /// The RPC endpoint, default value is http://localhost:8545.
     #[serde(default = "default_rpc")]
     pub rpc: String,
+
+    /// The block height to query at. Can also be the tags earliest, finalized, safe, latest, pending or block hash.
     #[serde(default)]
     block: Option<String>,
 }
 
 #[derive(Debug, Clone, serde::Deserialize, DefaultFromSerde, schemars::JsonSchema)]
 pub struct BlockArgs {
+    /// The RPC endpoint, default value is http://localhost:8545.
     #[serde(default = "default_rpc")]
     pub rpc: String,
 
@@ -27,20 +31,17 @@ pub struct BlockArgs {
     /// Print the raw RLP encoded block header.
     raw: bool,
 
+    /// If true, get all fields.
     full: bool,
 
+    /// The block height to query at. Can also be the tags earliest, finalized, safe, latest, pending or block hash.
     #[serde(default)]
     block: Option<String>,
 }
 
 #[tool_router(router = block_router, vis = "pub")]
 impl Server {
-    #[tool(description = "
-      Get the timestamp of a block.
-      Parameters:
-        rpc: The RPC endpoint, default value is http://localhost:8545.
-        block: The block height to query at. Can also be the tags earliest, finalized, safe, latest, pending or block hash.
-    ")]
+    #[tool(description = "Get the timestamp of a block. ")]
     async fn age(
         &self,
         Parameters(args): Parameters<AgeArgs>,
@@ -75,15 +76,7 @@ impl Server {
         Ok(CallToolResult::success(vec![Content::text(age)]))
     }
 
-    #[tool(description = "
-      Get the timestamp of a block.
-      Parameters:
-        rpc: The RPC endpoint, default value is http://localhost:8545.
-        block: The block height to query at. Can also be the tags earliest, finalized, safe, latest, pending or block hash.
-        fields: If specified, only get the given field of the block.
-        raw: Returns the raw RLP encoded block header.
-        full: if true, get all fields.
-    ")]
+    #[tool(description = "Get the timestamp of a block.")]
     async fn block(
         &self,
         Parameters(args): Parameters<BlockArgs>,
