@@ -6,11 +6,20 @@ Cast is a powerful command-line tool for interacting with Ethereum blockchain ne
 
 ## Features
 
-### Blockchain Tools
+### Chain Tools
 - `chain`: Get the symbolic name of the current chain
 - `chain_id`: Get the chain ID of the current chain
 - `client`: Get the current client version
 - `age`: Get the timestamp of a block
+
+### Block Tools
+- `block`: Get detailed information about a block
+
+### Account Tools
+- `balance`: Get the balance of an account in wei or ether
+- `nonce`: Get the nonce of an account
+- `code`: Get the bytecode of a contract (with optional disassembly)
+- `storage`: Get the storage value at a specific slot
 
 ### Utility Tools
 - `ping`: Test tool that returns "pong"
@@ -127,11 +136,20 @@ cargo clean
 ### Testing
 
 ```bash
-# Run tests (if available)
+# Run all tests
 cargo test
 
 # Run tests with verbose output
 cargo test -- --nocapture
+
+# Run specific test modules
+cargo test common::account_tools
+cargo test common::block_tools
+cargo test common::chain_tools
+cargo test common::utility_tools
+
+# Run integration tests (if available)
+cargo test --test integration_test
 ```
 
 ## Contributing
