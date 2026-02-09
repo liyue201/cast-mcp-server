@@ -1,6 +1,7 @@
 use alloy_primitives::{Address, U256};
 use cast::Cast;
 use foundry_cli::{opts::RpcOpts, utils, utils::LoadConfig};
+use futures::TryFutureExt;
 use rmcp::{
     ErrorData, handler::server::wrapper::Parameters, model::*, schemars, tool, tool_router,
 };
@@ -51,8 +52,11 @@ pub struct CodeArgs {
     #[serde(default)]
     pub block: Option<String>,
 
-    /// The contract address to query.
-    pub address: String,
+    /// An Ethereum Address
+    pub address: Option<String>,
+
+    /// An ENS Name (format does not get checked)
+    pub name: Option<String>,
 
     /// Disassemble bytecodes into individual opcodes.
     #[serde(default)]
@@ -78,6 +82,23 @@ pub struct StorageArgs {
     /// Return the proof for the queried storage slot.
     #[serde(default)]
     pub proof: bool,
+}
+
+#[derive(Debug, Clone, serde::Deserialize, DefaultFromSerde, schemars::JsonSchema)]
+pub struct CodeSizeArgs {
+    /// The RPC endpoint, default value is http://localhost:8545.
+    #[serde(default = "default_rpc")]
+    pub rpc: String,
+
+    /// The block height to query at. Can also be the tags earliest, finalized, safe, latest, pending or block hash.
+    #[serde(default)]
+    pub block: Option<String>,
+
+    /// An Ethereum Address
+    pub address: Option<String>,
+
+    /// An ENS Name (format does not get checked)
+    pub name: Option<String>,
 }
 
 #[tool_router(router = account_router, vis = "pub")]
@@ -205,12 +226,14 @@ impl Server {
             )
         })?;
 
-        let address: Address = args.address.parse().map_err(|e| {
-            ErrorData::parse_error(
-                "Invalid address format",
-                Some(Value::String(format!("{:?}", e))),
-            )
-        })?;
+        let address = resolve(&provider, args.name, args.address)
+            .await
+            .map_err(|e| {
+                ErrorData::internal_error(
+                    "Failed to get address",
+                    Some(Value::String(format!("{:?}", e))),
+                )
+            })?;
 
         let code = Cast::new(provider)
             .code(address, Some(get_block_id(args.block)), args.disassemble)
@@ -276,6 +299,55 @@ impl Server {
 
         Ok(CallToolResult::success(vec![Content::text(storage)]))
     }
+
+    #[tool(description = "Get the size of contract bytecode in bytes")]
+    async fn code_size(
+        &self,
+        Parameters(args): Parameters<CodeSizeArgs>,
+    ) -> Result<CallToolResult, ErrorData> {
+        let rpc = RpcOpts {
+            url: Some(args.rpc.clone()),
+            accept_invalid_certs: false,
+            no_proxy: false,
+            flashbots: false,
+            jwt_secret: None,
+            rpc_timeout: None,
+            rpc_headers: None,
+            curl: false,
+        };
+        let config = rpc.load_config().map_err(|e| {
+            ErrorData::parse_error("Invalid RPC URL", Some(Value::String(format!("{:?}", e))))
+        })?;
+        let provider = utils::get_provider(&config).map_err(|e| {
+            ErrorData::internal_error(
+                "Failed to get provider",
+                Some(Value::String(format!("{:?}", e))),
+            )
+        })?;
+
+        let address = resolve(&provider, args.name, args.address)
+            .await
+            .map_err(|e| {
+                ErrorData::internal_error(
+                    "Failed to get address",
+                    Some(Value::String(format!("{:?}", e))),
+                )
+            })?;
+
+        let byte_size = Cast::new(provider)
+            .codesize(address, Some(get_block_id(args.block)))
+            .await
+            .map_err(|e| {
+                ErrorData::internal_error(
+                    "Failed to get code size",
+                    Some(Value::String(format!("{:?}", e))),
+                )
+            })?;
+
+        Ok(CallToolResult::success(vec![Content::text(
+            byte_size.to_string(),
+        )]))
+    }
 }
 
 fn format_balance(balance: U256) -> String {
@@ -321,6 +393,13 @@ mod tests {
         assert_eq!(args.rpc, "http://localhost:8545");
         assert_eq!(args.block, None);
         assert_eq!(args.proof, false);
+    }
+
+    #[test]
+    fn test_code_size_args_default() {
+        let args = CodeSizeArgs::default();
+        assert_eq!(args.rpc, "http://localhost:8545");
+        assert_eq!(args.block, None);
     }
 
     #[tokio::test]
@@ -410,7 +489,8 @@ mod tests {
         let code_args = CodeArgs {
             rpc: "https://1rpc.io/eth".to_string(),
             block: Some("latest".to_string()),
-            address: test_address.to_string(),
+            address: Some(test_address.to_string()),
+            name: None,
             disassemble: false,
         };
         let code_params = Parameters(code_args);
@@ -482,6 +562,84 @@ mod tests {
                 println!("Storage error (expected): {}", error.message);
             }
         }
+
+        // Test code_size tool
+        let code_size_args = CodeSizeArgs {
+            rpc: "https://1rpc.io/eth".to_string(),
+            block: Some("latest".to_string()),
+            address: Some(test_address.to_string()),
+            name: None,
+        };
+        let code_size_params = Parameters(code_size_args);
+
+        let code_size_result = server.code_size(code_size_params).await;
+        match code_size_result {
+            Ok(result) => {
+                assert!(
+                    !result.content.is_empty(),
+                    "Code size tool should return content when successful"
+                );
+                let response_text = result
+                    .content
+                    .first()
+                    .unwrap()
+                    .raw
+                    .as_text()
+                    .expect("Response should be text");
+                // Code size should be numeric
+                assert!(
+                    response_text.text.parse::<usize>().is_ok() || !response_text.text.is_empty(),
+                    "Code size should be numeric or non-empty"
+                );
+                println!("Code size response: {} bytes", response_text.text);
+            }
+            Err(error) => {
+                assert!(
+                    !error.message.is_empty(),
+                    "Error message should not be empty"
+                );
+                println!("Code size error (expected): {}", error.message);
+            }
+        }
+
+        // Test code_size tool
+        let code_size_args = CodeSizeArgs {
+            rpc: "https://1rpc.io/eth".to_string(),
+            block: Some("latest".to_string()),
+            address: Some(test_address.to_string()),
+            name: None,
+        };
+        let code_size_params = Parameters(code_size_args);
+
+        let code_size_result = server.code_size(code_size_params).await;
+        match code_size_result {
+            Ok(result) => {
+                assert!(
+                    !result.content.is_empty(),
+                    "Code size tool should return content when successful"
+                );
+                let response_text = result
+                    .content
+                    .first()
+                    .unwrap()
+                    .raw
+                    .as_text()
+                    .expect("Response should be text");
+                // Code size should be numeric
+                assert!(
+                    response_text.text.parse::<usize>().is_ok() || !response_text.text.is_empty(),
+                    "Code size should be numeric or non-empty"
+                );
+                println!("Code size response: {} bytes", response_text.text);
+            }
+            Err(error) => {
+                assert!(
+                    !error.message.is_empty(),
+                    "Error message should not be empty"
+                );
+                println!("Code size error (expected): {}", error.message);
+            }
+        }
     }
 
     #[tokio::test]
@@ -517,7 +675,8 @@ mod tests {
                             let args = CodeArgs {
                                 rpc: "https://1rpc.io/eth".to_string(),
                                 block: Some("latest".to_string()),
-                                address: addr,
+                                address: Some(addr),
+                                name: None,
                                 disassemble: false,
                             };
                             server_clone.code(Parameters(args)).await

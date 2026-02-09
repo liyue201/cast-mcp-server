@@ -1,6 +1,10 @@
-use alloy_primitives::hex;
+use std::io;
+
+use alloy_ens::ProviderEnsExt;
+use alloy_primitives::{Address, B256, Keccak256, address, hex};
 use alloy_rpc_types::{BlockId, BlockNumberOrTag::Latest};
 
+//use alloy_ens::contract::EnsError;
 pub fn default_rpc() -> String {
     "http://localhost:8545".to_string()
 }
@@ -44,4 +48,21 @@ pub fn get_block_id(block: Option<String>) -> BlockId {
         }
         None => BlockId::Number(Latest),
     }
+}
+
+pub async fn resolve<N: alloy_provider::Network, P: alloy_provider::Provider<N>>(
+    provider: &P,
+    name: Option<String>,
+    address: Option<String>,
+) -> Result<Address, String> {
+    if let Some(name) = name {
+        provider
+            .resolve_name(&name)
+            .await
+            .map_err(|e| e.to_string())?;
+    }
+    if let Some(address) = address {
+        Address::from_slice(hex::decode(address).unwrap().as_slice());
+    }
+    Err("address is empty".to_string())
 }

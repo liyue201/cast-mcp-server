@@ -22,6 +22,7 @@ Cast is a powerful command-line tool for interacting with Ethereum blockchain ne
 - `balance`: Get the balance of an account in wei or ether
 - `nonce`: Get the nonce of an account
 - `code`: Get the bytecode of a contract (with optional disassembly)
+- `code_size`: Get the size of contract bytecode in bytes
 - `storage`: Get the storage value at a specific slot
 
 ### Utility Tools
@@ -172,6 +173,17 @@ Here are examples of how to use the available tools:
   "arguments": {
     "rpc": "https://mainnet.infura.io/v3/YOUR_PROJECT_ID",
     "who": "0x742d35Cc6634C0532925a3b844Bc454e4438f44e",
+    "block": "latest"
+  }
+}
+```
+
+```json
+{
+  "name": "code_size",
+  "arguments": {
+    "rpc": "https://mainnet.infura.io/v3/YOUR_PROJECT_ID",
+    "address": "0x742d35Cc6634C0532925a3b844Bc454e4438f44e",
     "block": "latest"
   }
 }
