@@ -16,6 +16,23 @@ pub struct AgeArgs {
     block: Option<String>,
 }
 
+#[derive(Debug, Clone, serde::Deserialize, DefaultFromSerde, schemars::JsonSchema)]
+pub struct BlockArgs {
+    #[serde(default = "default_rpc")]
+    pub rpc: String,
+
+    /// If specified, only get the given field of the block.
+    fields: Vec<String>,
+
+    /// Print the raw RLP encoded block header.
+    raw: bool,
+
+    full: bool,
+
+    #[serde(default)]
+    block: Option<String>,
+}
+
 #[tool_router(router = block_router, vis = "pub")]
 impl Server {
     #[tool(description = "
@@ -57,6 +74,49 @@ impl Server {
 
         Ok(CallToolResult::success(vec![Content::text(age)]))
     }
+
+    #[tool(description = "
+      Get the timestamp of a block.
+      Parameters:
+        rpc: The RPC endpoint, default value is http://localhost:8545.
+        block: The block height to query at. Can also be the tags earliest, finalized, safe, latest, pending or block hash.
+        fields: If specified, only get the given field of the block.
+        raw: Returns the raw RLP encoded block header.
+        full: if true, get all fields.
+    ")]
+    async fn block(
+        &self,
+        Parameters(args): Parameters<BlockArgs>,
+    ) -> Result<CallToolResult, ErrorData> {
+        let rpc = RpcOpts {
+            url: Some(args.rpc.clone()),
+            accept_invalid_certs: false,
+            no_proxy: false,
+            flashbots: false,
+            jwt_secret: None,
+            rpc_timeout: None,
+            rpc_headers: None,
+            curl: false,
+        };
+        let config = rpc.load_config().map_err(|e| {
+            ErrorData::parse_error("Invalid RPC URL", Some(Value::String(e.to_string())))
+        })?;
+        let provider = utils::get_provider(&config).map_err(|e| {
+            ErrorData::internal_error("Failed to get provider", Some(Value::String(e.to_string())))
+        })?;
+
+        let raw = args.raw || args.fields.contains(&"raw".into());
+        let block_id = get_block_id(args.block);
+        let res = Cast::new(provider)
+            .block(block_id, args.full, args.fields, raw)
+            .await
+            .map_err(|e| {
+                println!("Error: {}", e.to_string());
+                ErrorData::internal_error("Failed to get block", Some(Value::String(e.to_string())))
+            })?;
+
+        Ok(CallToolResult::success(vec![Content::text(res)]))
+    }
 }
 
 #[cfg(test)]
@@ -93,7 +153,7 @@ mod tests {
 
         for tag in block_tags {
             let args = AgeArgs {
-                rpc: "https://mainnet.infura.io".to_string(),
+                rpc: "https://1rpc.io/eth".to_string(),
                 block: Some(tag.to_string()),
             };
             let params = Parameters(args);
@@ -143,7 +203,7 @@ mod tests {
 
         // Test with localhost (may succeed or fail, but we check structure)
         let args = AgeArgs {
-            rpc: "https://mainnet.infura.io".to_string(),
+            rpc: "https://1rpc.io/eth".to_string(),
             block: Some("latest".to_string()),
         };
         let params = Parameters(args);
@@ -281,5 +341,283 @@ mod tests {
         };
         assert_eq!(args2.rpc, "http://localhost:8545");
         assert_eq!(args2.block, Some("earliest".to_string()));
+    }
+
+    // BlockArgs tests
+    #[test]
+    fn test_block_args_default() {
+        let args = BlockArgs::default();
+        assert_eq!(args.rpc, "http://localhost:8545");
+        assert_eq!(args.fields, Vec::<String>::new());
+        assert_eq!(args.raw, false);
+        assert_eq!(args.full, false);
+        assert_eq!(args.block, None);
+    }
+
+    #[test]
+    fn test_block_args_clone() {
+        let original = BlockArgs {
+            rpc: "https://test.com".to_string(),
+            fields: vec!["number".to_string(), "hash".to_string()],
+            raw: true,
+            full: false,
+            block: Some("latest".to_string()),
+        };
+        let cloned = original.clone();
+        assert_eq!(original.rpc, cloned.rpc);
+        assert_eq!(original.fields, cloned.fields);
+        assert_eq!(original.raw, cloned.raw);
+        assert_eq!(original.full, cloned.full);
+        assert_eq!(original.block, cloned.block);
+    }
+
+    #[test]
+    fn test_block_args_debug_format() {
+        let args = BlockArgs {
+            rpc: "test-rpc".to_string(),
+            fields: vec!["timestamp".to_string()],
+            raw: false,
+            full: true,
+            block: Some("12345".to_string()),
+        };
+        let debug_output = format!("{:?}", args);
+        assert!(debug_output.contains("BlockArgs"));
+        assert!(debug_output.contains("test-rpc"));
+        assert!(debug_output.contains("timestamp"));
+        assert!(debug_output.contains("12345"));
+    }
+
+    #[tokio::test]
+    async fn test_block_invalid_rpc() {
+        let server = Server::new();
+
+        let args = BlockArgs {
+            rpc: "invalid-url".to_string(),
+            fields: Vec::new(),
+            raw: false,
+            full: false,
+            block: Some("latest".to_string()),
+        };
+        let params = Parameters(args);
+
+        let result = tokio::time::timeout(std::time::Duration::from_secs(5), server.block(params))
+            .await
+            .expect("Block tool timeout");
+
+        // Should return error for invalid RPC
+        assert!(result.is_err(), "Should return error for invalid RPC URL");
+        let error = result.unwrap_err();
+
+        assert!(
+            error.message.contains("Failed to get block"),
+            "Failed to get block"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_block_with_different_options() {
+        let server = Server::new();
+
+        // Test various combinations of block options
+        let test_cases = vec![
+            // Basic case
+            BlockArgs {
+                rpc: "https://1rpc.io/eth".to_string(),
+                fields: Vec::new(),
+                raw: false,
+                full: false,
+                block: Some("latest".to_string()),
+            },
+            // Full block
+            BlockArgs {
+                rpc: "https://1rpc.io/eth".to_string(),
+                fields: Vec::new(),
+                raw: false,
+                full: true,
+                block: Some("latest".to_string()),
+            },
+            // Raw block
+            BlockArgs {
+                rpc: "https://1rpc.io/eth".to_string(),
+                fields: vec!["raw".to_string()],
+                raw: false, // This should be overridden by fields containing "raw"
+                full: false,
+                block: Some("latest".to_string()),
+            },
+            // Specific fields
+            BlockArgs {
+                rpc: "https://1rpc.io/eth".to_string(),
+                fields: vec!["number".to_string(), "timestamp".to_string()],
+                raw: false,
+                full: false,
+                block: Some("latest".to_string()),
+            },
+        ];
+
+        for (i, args) in test_cases.into_iter().enumerate() {
+            let params = Parameters(args);
+
+            let result =
+                tokio::time::timeout(std::time::Duration::from_secs(10), server.block(params))
+                    .await
+                    .expect(&format!("Block tool timeout for test case {}", i));
+
+            // Test response structure regardless of success/failure
+            match result {
+                Ok(response) => {
+                    assert!(
+                        !response.content.is_empty(),
+                        "Block tool should return content for test case {}",
+                        i
+                    );
+                    let response_text = response
+                        .content
+                        .first()
+                        .unwrap()
+                        .raw
+                        .as_text()
+                        .expect("Response should be text");
+                    assert!(
+                        !response_text.text.is_empty(),
+                        "Block response should not be empty for test case {}",
+                        i
+                    );
+                    println!(
+                        "Block test case {} response length: {}",
+                        i,
+                        response_text.text.len()
+                    );
+                }
+                Err(error) => {
+                    assert!(
+                        !error.message.is_empty(),
+                        "Error message should not be empty for test case {}",
+                        i
+                    );
+                    println!("Block test case {} error (expected): {}", i, error.message);
+                }
+            }
+        }
+    }
+
+    #[tokio::test]
+    async fn test_block_block_tags() {
+        let server = Server::new();
+
+        let block_tags = vec!["earliest", "finalized", "safe", "latest", "pending"];
+
+        for tag in block_tags {
+            let args = BlockArgs {
+                rpc: "https://1rpc.io/eth".to_string(),
+                fields: vec!["number".to_string()],
+                raw: false,
+                full: false,
+                block: Some(tag.to_string()),
+            };
+            let params = Parameters(args);
+
+            let result =
+                tokio::time::timeout(std::time::Duration::from_secs(5), server.block(params))
+                    .await
+                    .expect(&format!("Block tool timeout for block tag: {}", tag));
+
+            // Test response structure regardless of success/failure
+            match result {
+                Ok(response) => {
+                    assert!(
+                        !response.content.is_empty(),
+                        "Block tool should return content for tag: {}",
+                        tag
+                    );
+                    let response_text = response
+                        .content
+                        .first()
+                        .unwrap()
+                        .raw
+                        .as_text()
+                        .expect("Response should be text");
+                    assert!(
+                        !response_text.text.is_empty(),
+                        "Block response should not be empty for tag: {}",
+                        tag
+                    );
+                    println!(
+                        "Block for {}: {}...",
+                        tag,
+                        &response_text.text[..std::cmp::min(100, response_text.text.len())]
+                    );
+                }
+                Err(error) => {
+                    assert!(
+                        !error.message.is_empty(),
+                        "Error message should not be empty for tag: {}",
+                        tag
+                    );
+                    println!("Block error for {} (expected): {}", tag, error.message);
+                }
+            }
+        }
+    }
+
+    #[tokio::test]
+    async fn test_concurrent_block_calls() {
+        let server = Arc::new(Server::new());
+
+        // Test concurrent execution with different block configurations
+        let test_configs = vec![
+            (vec!["number".to_string()], false, false, Some("latest")),
+            (Vec::new(), true, false, Some("finalized")),
+            (vec!["timestamp".to_string()], false, true, Some("safe")),
+            (Vec::new(), false, false, None), // Default case
+        ];
+
+        let handles: Vec<_> = test_configs
+            .into_iter()
+            .enumerate()
+            .map(|(_, (fields, raw, full, block_opt))| {
+                let server_clone = Arc::clone(&server);
+                tokio::spawn(async move {
+                    let args = BlockArgs {
+                        rpc: "https://1rpc.io/eth".to_string(),
+                        fields,
+                        raw,
+                        full,
+                        block: block_opt.map(|s| s.to_string()),
+                    };
+                    let params = Parameters(args);
+
+                    server_clone.block(params).await
+                })
+            })
+            .collect();
+
+        // Wait for all concurrent calls to complete
+        let results: Vec<_> = futures::future::join_all(handles).await;
+
+        // Verify all concurrent calls completed
+        for (i, result) in results.into_iter().enumerate() {
+            let call_result = result.expect(&format!("Concurrent block task {} join failed", i));
+            match call_result {
+                Ok(response) => {
+                    assert!(
+                        !response.content.is_empty(),
+                        "Concurrent block call {} should return content",
+                        i
+                    );
+                    println!("Concurrent block call {} succeeded", i);
+                }
+                Err(e) => {
+                    assert!(
+                        !e.message.is_empty(),
+                        "Concurrent block call {} error should have message",
+                        i
+                    );
+                    println!(
+                        "Concurrent block call {} failed as expected: {}",
+                        i, e.message
+                    );
+                }
+            }
+        }
     }
 }
