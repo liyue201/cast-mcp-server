@@ -44,11 +44,6 @@ pub struct MaxUIntArgs {
 
 #[tool_router(router = utility_router, vis = "pub")]
 impl Server {
-    #[tool(description = "A test tool")]
-    async fn ping(&self) -> Result<CallToolResult, ErrorData> {
-        Ok(CallToolResult::success(vec![Content::text("pong")]))
-    }
-
     #[tool(description = "Get maximum value for integer type.")]
     async fn max_int(
         &self,
@@ -115,34 +110,6 @@ mod tests {
     fn test_max_uint_args_default() {
         let args = MaxUIntArgs::default();
         assert_eq!(args.r#type, "uint256");
-    }
-
-    #[tokio::test]
-    async fn test_ping() {
-        let server = Server::new();
-
-        // Add timeout control to prevent test hanging
-        let result = tokio::time::timeout(std::time::Duration::from_secs(5), server.ping())
-            .await
-            .expect("Ping request timeout")
-            .expect("Ping request failed");
-
-        println!("Result: {:?}", result);
-
-        // Improved error handling and assertions
-        let response_text = result
-            .content
-            .first()
-            .ok_or("Response content is empty")
-            .and_then(|item| item.raw.as_text().ok_or("Cannot parse as text"))
-            .map(|text_item| &text_item.text)
-            .expect("Failed to get response text");
-
-        assert_eq!(
-            response_text, "pong",
-            "Expected 'pong' response, but received: '{}'",
-            response_text
-        );
     }
 
     #[tokio::test]
@@ -370,84 +337,5 @@ mod tests {
             "Keccak256 hash should be 66 characters"
         );
         println!("Zero hash: {}", response_text.text);
-    }
-
-    #[tokio::test]
-    async fn test_concurrent_tool_calls() {
-        let server = Server::new();
-
-        // Test concurrent execution of different tools
-        let handles: Vec<_> = (0..4)
-            .map(|i| {
-                let server_ref = server.clone();
-                tokio::spawn(async move {
-                    match i % 4 {
-                        0 => server_ref.ping().await,
-                        1 => server_ref.address_zero().await,
-                        2 => {
-                            let args = MaxIntArgs {
-                                r#type: "int32".to_string(),
-                            };
-                            server_ref.max_int(Parameters(args)).await
-                        }
-                        3 => {
-                            let args = MaxUIntArgs {
-                                r#type: "uint64".to_string(),
-                            };
-                            server_ref.max_uint(Parameters(args)).await
-                        }
-                        _ => unreachable!(),
-                    }
-                })
-            })
-            .collect();
-
-        // Wait for all concurrent calls to complete
-        let results: Vec<_> = futures::future::join_all(handles).await;
-
-        // Verify all concurrent calls succeeded
-        for (i, result) in results.into_iter().enumerate() {
-            let call_result = result.expect(&format!("Concurrent task {} join failed", i));
-            assert!(call_result.is_ok(), "Concurrent call {} should succeed", i);
-        }
-    }
-
-    #[tokio::test]
-    async fn test_tool_response_consistency() {
-        let server = Server::new();
-
-        // Test that multiple calls to the same tool return consistent results
-        for _ in 0..3 {
-            let result1 = server.ping().await.expect("First ping failed");
-            let result2 = server.ping().await.expect("Second ping failed");
-
-            // Compare response content
-            assert_eq!(
-                result1.content.len(),
-                result2.content.len(),
-                "Response lengths should match"
-            );
-
-            let text1 = result1
-                .content
-                .first()
-                .unwrap()
-                .raw
-                .as_text()
-                .unwrap()
-                .text
-                .clone();
-            let text2 = result2
-                .content
-                .first()
-                .unwrap()
-                .raw
-                .as_text()
-                .unwrap()
-                .text
-                .clone();
-
-            assert_eq!(text1, text2, "Ping responses should be identical");
-        }
     }
 }

@@ -25,7 +25,6 @@ Cast is a powerful command-line tool for interacting with Ethereum blockchain ne
 - `storage`: Get the storage value at a specific slot
 
 ### Utility Tools
-- `ping`: Test tool that returns "pong"
 - `max_int`: Get maximum value for signed integer types (int8, int16, int32, int64, int256)
 - `min_int`: Get minimum value for signed integer types (int8, int16, int32, int64, int256)
 - `max_uint`: Get maximum value for unsigned integer types (uint8, uint16, uint32, uint64, uint256)
