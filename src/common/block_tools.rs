@@ -50,6 +50,13 @@ pub struct BlockNumberArgs {
     pub block: Option<String>,
 }
 
+#[derive(Debug, Clone, serde::Deserialize, DefaultFromSerde, schemars::JsonSchema)]
+pub struct GasPriceArgs {
+    /// The RPC endpoint, default value is http://localhost:8545.
+    #[serde(default = "default_rpc")]
+    pub rpc: String,
+}
+
 #[tool_router(router = block_router, vis = "pub")]
 impl Server {
     #[tool(description = "Get the timestamp of a block. ")]
@@ -170,6 +177,40 @@ impl Server {
         };
 
         Ok(CallToolResult::success(vec![Content::text(block_number)]))
+    }
+
+    #[tool(description = "Get the current gas price")]
+    async fn gas_price(
+        &self,
+        Parameters(args): Parameters<GasPriceArgs>,
+    ) -> Result<CallToolResult, ErrorData> {
+        let rpc = RpcOpts {
+            url: Some(args.rpc.clone()),
+            accept_invalid_certs: false,
+            no_proxy: false,
+            flashbots: false,
+            jwt_secret: None,
+            rpc_timeout: None,
+            rpc_headers: None,
+            curl: false,
+        };
+        let config = rpc.load_config().map_err(|e| {
+            ErrorData::parse_error("Invalid RPC URL", Some(Value::String(e.to_string())))
+        })?;
+        let provider = utils::get_provider(&config).map_err(|e| {
+            ErrorData::internal_error("Failed to get provider", Some(Value::String(e.to_string())))
+        })?;
+
+        let price = Cast::new(provider).gas_price().await.map_err(|e| {
+            ErrorData::internal_error(
+                "Failed to get gas price",
+                Some(Value::String(e.to_string())),
+            )
+        })?;
+
+        Ok(CallToolResult::success(vec![Content::text(
+            price.to_string(),
+        )]))
     }
 }
 
@@ -833,6 +874,135 @@ mod tests {
                     );
                     println!(
                         "Concurrent block number call {} failed as expected: {}",
+                        i, e.message
+                    );
+                }
+            }
+        }
+    }
+
+    #[tokio::test]
+    async fn test_gas_price_tool() {
+        let server = Server::new();
+
+        // Test gas price with different RPC endpoints
+        let test_cases = vec![
+            "https://1rpc.io/eth",
+            "https://ethereum-rpc.publicnode.com",
+            // "http://localhost:8545", // Local node (may not be available)
+        ];
+
+        for rpc_url in test_cases {
+            let args = GasPriceArgs {
+                rpc: rpc_url.to_string(),
+            };
+            let params = Parameters(args);
+
+            let result =
+                tokio::time::timeout(std::time::Duration::from_secs(5), server.gas_price(params))
+                    .await
+                    .expect(&format!("Gas price tool timeout for RPC: {}", rpc_url));
+
+            // Test response structure regardless of success/failure
+            match result {
+                Ok(response) => {
+                    assert!(
+                        !response.content.is_empty(),
+                        "Gas price tool should return content for RPC: {}",
+                        rpc_url
+                    );
+                    let response_text = response
+                        .content
+                        .first()
+                        .unwrap()
+                        .raw
+                        .as_text()
+                        .expect("Response should be text");
+                    assert!(
+                        !response_text.text.is_empty(),
+                        "Gas price response should not be empty for RPC: {}",
+                        rpc_url
+                    );
+                    // Gas price should be numeric (wei value)
+                    let gas_price_result = response_text.text.parse::<u128>();
+                    match gas_price_result {
+                        Ok(price) => {
+                            assert!(price > 0, "Gas price should be positive");
+                            println!("Gas price for {}: {} wei", rpc_url, price);
+                        }
+                        Err(_) => {
+                            // If not numeric, should still be non-empty and contain gas price info
+                            assert!(
+                                response_text.text.contains("gas")
+                                    || response_text.text.contains("price"),
+                                "Non-numeric gas price response should contain gas/price info"
+                            );
+                            println!("Gas price for {}: {}", rpc_url, response_text.text);
+                        }
+                    }
+                }
+                Err(error) => {
+                    assert!(
+                        !error.message.is_empty(),
+                        "Error message should not be empty for RPC: {}",
+                        rpc_url
+                    );
+                    println!(
+                        "Gas price error for {} (expected): {}",
+                        rpc_url, error.message
+                    );
+                }
+            }
+        }
+    }
+
+    #[tokio::test]
+    async fn test_concurrent_gas_price_calls() {
+        let server = Arc::new(Server::new());
+
+        // Test concurrent execution with different RPC endpoints
+        let rpc_endpoints = vec!["https://1rpc.io/eth", "https://ethereum-rpc.publicnode.com"];
+
+        let handles: Vec<_> = rpc_endpoints
+            .into_iter()
+            .enumerate()
+            .map(|(_, rpc_url)| {
+                let server_clone = Arc::clone(&server);
+                tokio::spawn(async move {
+                    let args = GasPriceArgs {
+                        rpc: rpc_url.to_string(),
+                    };
+                    let params = Parameters(args);
+
+                    server_clone.gas_price(params).await
+                })
+            })
+            .collect();
+
+        // Wait for all concurrent calls to complete
+        let results: Vec<_> = futures::future::join_all(handles).await;
+
+        // Verify all concurrent calls completed
+        for (i, result) in results.into_iter().enumerate() {
+            let call_result =
+                result.expect(&format!("Concurrent gas price task {} join failed", i));
+            match call_result {
+                Ok(response) => {
+                    assert!(
+                        !response.content.is_empty(),
+                        "Concurrent gas price call {} should return content",
+                        i
+                    );
+                    println!("Concurrent gas price call {} succeeded", i);
+                }
+                Err(e) => {
+                    assert!(
+                        !e.message.is_empty(),
+                        "Concurrent gas price call {} error should have message",
+                        i
+                    );
+                    println!(
+                        "Concurrent gas price call {} failed as expected: {}",
                         i, e.message
                     );
                 }

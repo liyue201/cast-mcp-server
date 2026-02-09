@@ -16,6 +16,7 @@ Cast is a powerful command-line tool for interacting with Ethereum blockchain ne
 - `block`: Get detailed information about a block
 - `block_number`: Get the block number of a specific block or the latest block
 - `age`: Get the timestamp of a block
+- `gas_price`: Get the current gas price
 
 ### Account Tools
 - `balance`: Get the balance of an account in wei or ether
@@ -140,6 +141,15 @@ Here are examples of how to use the available tools:
   "arguments": {
     "rpc": "https://mainnet.infura.io/v3/YOUR_PROJECT_ID",
     "block": "1000000"
+  }
+}
+```
+
+```json
+{
+  "name": "gas_price",
+  "arguments": {
+    "rpc": "https://mainnet.infura.io/v3/YOUR_PROJECT_ID"
   }
 }
 ```
